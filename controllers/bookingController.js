@@ -8,13 +8,13 @@ const AppError = require('../utils/appError');
 
 exports.getCheckoutSession = catchAsync(async (req, res, next) => {
   // 1) Get the currently booked tour
-  const tour = await Tour.findById(req.params.tourId);
+  const [tour] = await Tour.findOne({ slug: req.params.slug });
 
   // 2) Create checkout session
   const session = await stripe.checkout.sessions.create({
     payment_method_types: ['card'],
     mode: 'payment',
-    success_url: `${req.protocol}://${req.get('host')}/?tour=${req.params.tourId}&user=${req.user.id}&price=${tour.price}&bookedDate=${req.body.bookedDate}`,
+    success_url: `${req.protocol}://${req.get('host')}/?tour=${req.params.slug}&user=${req.user.id}&price=${tour.price}&bookedDate=${req.body.bookedDate}`,
     cancel_url: `${req.protocol}://${req.get('host')}/tour/${tour.slug}`,
     customer_email: req.user.email,
     client_reference_id: req.params.tourId,
