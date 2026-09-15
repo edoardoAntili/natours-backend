@@ -195,9 +195,24 @@ exports.getDistances = catchAsync(async (req, res, next) => {
 });
 
 exports.getTourBySlug = catchAsync(async (req, res, next) => {
-  const [doc] = await Tour.find({ slug: req.params.slug }).populate('reviews');
+  const doc = await Tour.findOne({ slug: req.params.slug })
+    .populate('reviews')
+    .populate({
+      path: 'bookings',
+      match: { user: req.user?._id ?? null },
+      select: 'bookedDate',
+    });
 
   if (!doc) return next(new AppError('No tour found with that slug', 404));
+
+  console.log(doc);
+
+  const bookedDateIds = doc.bookings.map((booking) =>
+    booking.bookedDate.toString(),
+  );
+  doc.startDates = doc.startDates.filter(
+    (startDate) => !bookedDateIds.includes(startDate._id.toString()),
+  );
 
   res.status(200).json({ status: 'success', data: { data: doc } });
 });

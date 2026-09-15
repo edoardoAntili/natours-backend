@@ -49,6 +49,7 @@ exports.createBookingCheckout = catchAsync(async (req, res, next) => {
   await Booking.create({
     tour,
     user,
+    bookedDate,
     price,
   });
 
