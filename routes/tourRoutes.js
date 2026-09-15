@@ -56,6 +56,10 @@ router
     tourController.deleteTour,
   );
 
-router.get('/slug/:slug', authController.isLoggedIn, tourController.getTourBySlug);
+router.get(
+  '/slug/:slug',
+  authController.isLoggedIn,
+  tourController.getTourBySlug,
+);
 
 module.exports = router;
