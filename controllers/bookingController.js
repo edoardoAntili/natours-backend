@@ -71,11 +71,27 @@ exports.hasUserBookedTour = catchAsync(async (req, res, next) => {
   const userId = req.user.id;
   const tourId = req.params.tourId || req.body.tour;
 
-  const userBookings = await Booking.find({ user: userId });
-  const userBookingsTourIDs = userBookings.map((booking) => booking.tour.id);
+  const bookings = await Booking.find({ user: userId, tour: tourId });
 
-  if (userBookingsTourIDs.includes(tourId)) return next();
+  if (bookings.length > 0) {
+    req.bookings = bookings;
+    return next();
+  }
   throw new AppError(`Tours which haven't been booked cannot be reviewed`, 403);
+});
+
+exports.hasBookedDatePassed = catchAsync(async (req, res, next) => {
+  if (
+    req.bookings.some(
+      ({ bookedDate }) => new Date(bookedDate.date) < new Date(),
+    )
+  )
+    return next();
+
+  throw new AppError(
+    `This tour has been booked but no booking has a date which has already passed.`,
+    403,
+  );
 });
 
 exports.createBooking = factory.createOne(Booking);

@@ -200,15 +200,12 @@ exports.getTourBySlug = catchAsync(async (req, res, next) => {
     .populate({
       path: 'bookings',
       match: { user: req.user?._id ?? null },
-      select: 'bookedDate',
     });
 
   if (!doc) return next(new AppError('No tour found with that slug', 404));
 
-  console.log(doc);
-
   const bookedDateIds = doc.bookings.map((booking) =>
-    booking.bookedDate.toString(),
+    booking.bookedDate._id.toString(),
   );
   doc.startDates = doc.startDates.filter(
     (startDate) => !bookedDateIds.includes(startDate._id.toString()),
