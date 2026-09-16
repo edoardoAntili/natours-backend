@@ -14,6 +14,7 @@ router
     authController.restrictTo('user'),
     bookingController.hasUserBookedTour,
     bookingController.hasBookedDatePassed,
+    reviewController.hasUserReviewedTour,
     reviewController.setTourUserIds,
     reviewController.createReview,
   );

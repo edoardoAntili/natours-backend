@@ -1,12 +1,24 @@
 const Review = require('../models/reviewModel');
-// const catchAsync = require('../utils/catchAsync');
+const AppError = require('../utils/appError');
+const catchAsync = require('../utils/catchAsync');
 const factory = require('./handlerFactory');
 
 exports.setTourUserIds = (req, res, next) => {
-  if (!req.body.tour) req.body.tour = req.params.tourId;
-  if (!req.body.user) req.body.user = req.user.id;
+  req.body.tour = req.params.tourId;
+  req.body.user = req.user.id;
   next();
 };
+
+exports.hasUserReviewedTour = catchAsync(async (req, res, next) => {
+  const alreadyReviewed = await Review.exists({
+    tour: req.params.tourId,
+    user: req.user._id,
+  });
+
+  if (!alreadyReviewed) return next();
+
+  throw new AppError('This tour was already reviewed by you!', 403);
+});
 
 exports.getAllReviews = factory.getAll(Review);
 exports.createReview = factory.createOne(Review);
