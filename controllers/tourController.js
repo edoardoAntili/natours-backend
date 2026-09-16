@@ -196,7 +196,14 @@ exports.getDistances = catchAsync(async (req, res, next) => {
 
 exports.getTourBySlug = catchAsync(async (req, res, next) => {
   const doc = await Tour.findOne({ slug: req.params.slug })
-    .populate('reviews')
+    .populate({
+      path: 'reviews',
+      select: 'review rating createdAt user',
+      options: {
+        sort: { createdAt: -1 },
+        limit: 10,
+      },
+    })
     .populate({
       path: 'bookings',
       match: { user: req.user?._id ?? null },
