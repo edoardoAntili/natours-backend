@@ -36,6 +36,7 @@ const userSchema = new mongoose.Schema({
     enum: ['user', 'guide', 'lead-guide', 'admin'],
     default: 'user',
   },
+  likedTours: [{ type: mongoose.Schema.ObjectId, ref: 'Tour' }],
   passwordConfirm: {
     type: String,
     required: [true, 'Please confirm your password'],

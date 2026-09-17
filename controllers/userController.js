@@ -1,6 +1,8 @@
 const multer = require('multer');
 const sharp = require('sharp');
+const mongoose = require('mongoose');
 const User = require('../models/userModel');
+const Tour = require('../models/tourModel');
 const AppError = require('../utils/appError');
 const catchAsync = require('../utils/catchAsync');
 const factory = require('./handlerFactory');
@@ -60,6 +62,43 @@ exports.getMe = (req, res, next) => {
   req.params.id = req.user.id;
   next();
 };
+
+exports.addLikedTour = catchAsync(async (req, res) => {
+  const { tourId } = req.params;
+
+  if (
+    !mongoose.isValidObjectId(tourId) ||
+    !(await Tour.exists({ _id: tourId }))
+  )
+    throw new AppError('No tour found with that ID', 404);
+
+  const user = await User.findByIdAndUpdate(
+    req.user.id,
+    { $addToSet: { likedTours: tourId } },
+    { new: true },
+  );
+
+  res
+    .status(200)
+    .json({ status: 'success', data: { likedTours: user.likedTours } });
+});
+
+exports.removeLikedTour = catchAsync(async (req, res) => {
+  const { tourId } = req.params;
+
+  if (!mongoose.isValidObjectId(tourId))
+    throw new AppError('No tour found with that ID', 404);
+
+  const user = await User.findByIdAndUpdate(
+    req.user.id,
+    { $pull: { likedTours: tourId } },
+    { new: true },
+  );
+
+  res
+    .status(200)
+    .json({ status: 'success', data: { likedTours: user.likedTours } });
+});
 
 exports.updateMe = catchAsync(async (req, res, next) => {
   // 1) Create error if user POSTs password data

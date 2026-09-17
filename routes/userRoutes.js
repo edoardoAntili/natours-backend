@@ -25,6 +25,10 @@ router.patch(
   userController.updateMe,
 );
 router.delete('/deleteMe', userController.deleteMe);
+router
+  .route('/liked-tours/:tourId')
+  .post(userController.addLikedTour)
+  .delete(userController.removeLikedTour);
 
 router.use(authController.restrictTo('admin'));
 
