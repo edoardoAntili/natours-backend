@@ -25,6 +25,7 @@ router.patch(
   userController.updateMe,
 );
 router.delete('/deleteMe', userController.deleteMe);
+router.get('/liked-tours', userController.getLikedTours);
 router
   .route('/liked-tours/:tourId')
   .post(userController.addLikedTour)

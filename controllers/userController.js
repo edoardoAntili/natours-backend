@@ -63,6 +63,17 @@ exports.getMe = (req, res, next) => {
   next();
 };
 
+exports.getLikedTours = catchAsync(async (req, res) => {
+  const likedTourIds = req.user.likedTours.map((id) => id.toString());
+  const tours = await Tour.find({ _id: { $in: likedTourIds } });
+  const toursById = new Map(tours.map((tour) => [tour.id, tour]));
+  const likedTours = likedTourIds
+    .map((id) => toursById.get(id))
+    .filter(Boolean);
+
+  res.status(200).json({ status: 'success', data: { data: likedTours } });
+});
+
 exports.addLikedTour = catchAsync(async (req, res) => {
   const { tourId } = req.params;
 
