@@ -2,10 +2,14 @@ const express = require('express');
 const userController = require('../controllers/userController');
 const authController = require('../controllers/authController');
 const bookingRouter = require('./bookingRoutes');
+const bookingController = require('../controllers/bookingController');
+const reviewRouter = require('./reviewRoutes');
+const reviewController = require('../controllers/reviewController');
 
 const router = express.Router();
 
 router.use('/:userId/bookings', bookingRouter);
+router.use('/:userId/reviews', reviewRouter);
 
 router.post('/signup', authController.signup);
 router.post('/login', authController.login);
@@ -15,6 +19,9 @@ router.patch('/resetPassword/:token', authController.resetPassword);
 
 // Protect all routes after this middleware
 router.use(authController.protect);
+
+router.get('/bookings', bookingController.getMyBookings);
+router.get('/reviews', reviewController.getMyReviews);
 
 router.patch('/updateMyPassword', authController.updatePassword);
 router.get('/me', userController.getMe, userController.getUser);

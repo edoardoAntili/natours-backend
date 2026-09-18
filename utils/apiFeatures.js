@@ -39,11 +39,19 @@ class APIFeatures {
   }
 
   paginate() {
-    const page = this.queryString.page * 1 || 1;
-    const limit = this.queryString.limit * 1 || 100;
-    const skip = (page - 1) * limit;
+    const requestedPage = Number(this.queryString.page);
+    const requestedLimit = Number(this.queryString.limit);
+    this.page =
+      Number.isSafeInteger(requestedPage) && requestedPage > 0
+        ? requestedPage
+        : 1;
+    this.limit =
+      Number.isSafeInteger(requestedLimit) && requestedLimit > 0
+        ? requestedLimit
+        : 10;
+    const skip = (this.page - 1) * this.limit;
 
-    this.query = this.query.skip(skip).limit(limit);
+    this.query = this.query.skip(skip).limit(this.limit);
 
     return this;
   }

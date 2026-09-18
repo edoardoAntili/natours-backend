@@ -4,6 +4,7 @@ const StartDate = require('../models/startDateModel');
 const Booking = require('../models/bookingModel');
 const catchAsync = require('../utils/catchAsync');
 const factory = require('./handlerFactory');
+const APIFeatures = require('../utils/apiFeatures');
 const AppError = require('../utils/appError');
 
 exports.getCheckoutSession = catchAsync(async (req, res, next) => {
@@ -95,6 +96,45 @@ exports.hasBookedDatePassed = catchAsync(async (req, res, next) => {
 });
 
 exports.createBooking = factory.createOne(Booking);
+exports.getMyBookings = catchAsync(async (req, res) => {
+  const userFilter = { user: req.user.id };
+  const features = new APIFeatures(Booking.find(userFilter), {
+    page: req.query.page,
+    limit: req.query.limit,
+  })
+    .sort()
+    .paginate();
+
+  const [bookings, totalResults] = await Promise.all([
+    features.query,
+    Booking.countDocuments(userFilter),
+  ]);
+  const totalPages = Math.ceil(totalResults / features.limit);
+
+  res.status(200).json({
+    status: 'success',
+    results: bookings.length,
+    pagination: {
+      page: features.page,
+      limit: features.limit,
+      totalResults,
+      totalPages,
+      hasNextPage: features.page < totalPages,
+    },
+    data: {
+      data: bookings.map((booking) => ({
+        _id: booking.id,
+        tour: booking.tour ? { name: booking.tour.name } : null,
+        bookedDate: booking.bookedDate
+          ? { date: booking.bookedDate.date }
+          : null,
+        price: booking.price,
+        createdAt: booking.createdAt,
+        paid: booking.paid,
+      })),
+    },
+  });
+});
 exports.getAllBookings = factory.getAll(Booking);
 exports.getBooking = factory.getOne(Booking);
 exports.updateBooking = factory.updateOne(Booking);
