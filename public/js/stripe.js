@@ -21,7 +21,7 @@ export const bookTour = async (tourId) => {
       },
       withCredentials: true,
     });
-    console.log(session);
+    // console.log(session);
 
     // 2) Create checkout form + charge credit card
     window.location.assign(session.data.session.url);

@@ -8,6 +8,7 @@ const { xss } = require('express-xss-sanitizer');
 const hpp = require('hpp');
 const cors = require('cors');
 const cookieParser = require('cookie-parser');
+const compression = require('compression');
 
 const AppError = require('./utils/appError');
 const globalErrorHandler = require('./controllers/errorController');
@@ -70,6 +71,8 @@ app.use(
     credentials: true,
   }),
 );
+
+app.use(compression());
 
 // Development logging
 if (process.env.NODE_ENV === 'development') app.use(morgan('dev'));

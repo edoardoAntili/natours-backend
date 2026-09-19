@@ -163,9 +163,9 @@ tourSchema.pre(/^find/, function () {
   }).populate('startDates');
 });
 
-tourSchema.post(/^find/, function () {
-  console.log(`Query took ${Date.now() - this.start} milliseconds!`);
-});
+// tourSchema.post(/^find/, function () {
+//   console.log(`Query took ${Date.now() - this.start} milliseconds!`);
+// });
 
 // AGGREGATION MIDDLEWARE
 // tourSchema.pre('aggregate', function () {
