@@ -9,7 +9,10 @@ router.use(authController.protect);
 
 router
   .route('/')
-  .get(reviewController.getAllReviews)
+  .get(
+    authController.restrictTo('user', 'admin'),
+    reviewController.getAllReviews,
+  )
   .post(
     authController.restrictTo('user'),
     bookingController.hasUserBookedTour,
@@ -21,7 +24,7 @@ router
 
 router
   .route('/:id')
-  .get(reviewController.getReview)
+  .get(authController.restrictTo('user', 'admin'), reviewController.getReview)
   .patch(
     authController.restrictTo('user', 'admin'),
     reviewController.updateReview,

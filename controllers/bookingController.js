@@ -47,9 +47,18 @@ exports.createBookingCheckout = catchAsync(async (req, res, next) => {
 
   if (!tour || !user || !price || !bookedDate) return next();
 
+  if (!req.user)
+    throw new AppError('You must be logged in to complete a booking', 401);
+
+  if (req.user.role !== 'user')
+    throw new AppError(
+      'You do not have permission to complete this booking',
+      403,
+    );
+
   await Booking.create({
     tour,
-    user,
+    user: req.user.id,
     bookedDate,
     price,
   });

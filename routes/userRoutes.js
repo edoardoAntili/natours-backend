@@ -20,8 +20,16 @@ router.patch('/resetPassword/:token', authController.resetPassword);
 // Protect all routes after this middleware
 router.use(authController.protect);
 
-router.get('/bookings', bookingController.getMyBookings);
-router.get('/reviews', reviewController.getMyReviews);
+router.get(
+  '/bookings',
+  authController.restrictTo('user'),
+  bookingController.getMyBookings,
+);
+router.get(
+  '/reviews',
+  authController.restrictTo('user'),
+  reviewController.getMyReviews,
+);
 
 router.patch('/updateMyPassword', authController.updatePassword);
 router.get('/me', userController.getMe, userController.getUser);
