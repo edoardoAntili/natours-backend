@@ -40,10 +40,12 @@ reviewSchema.pre(/^find/, function () {
   //   select: 'name photo',
   // });
 
-  this.populate({
-    path: 'user',
-    select: 'name photo',
-  });
+  if (!this.getPopulatedPaths().includes('user')) {
+    this.populate({
+      path: 'user',
+      select: 'name photo',
+    });
+  }
 });
 
 reviewSchema.statics.calcAverageRatings = async function (tourId) {
@@ -75,6 +77,7 @@ reviewSchema.post('save', async function () {
 });
 
 reviewSchema.post(/^findOneAnd/, async (doc) => {
+  if (!doc) return;
   await doc.constructor.calcAverageRatings(doc.tour);
 });
 
