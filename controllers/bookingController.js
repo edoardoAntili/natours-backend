@@ -24,6 +24,9 @@ exports.getCheckoutSession = catchAsync(async (req, res, next) => {
     cancel_url: `${frontendUrl}/tour/${tour.slug}`,
     customer_email: req.user.email,
     client_reference_id: req.params.tourId,
+    metadata: {
+      bookedDate: req.body.bookedDate,
+    },
     line_items: [
       {
         price_data: {
@@ -47,40 +50,35 @@ exports.getCheckoutSession = catchAsync(async (req, res, next) => {
   });
 });
 
-exports.createBookingCheckout = catchAsync(async (req, res, next) => {
-  const { tour, user, price, bookedDate } = req.query;
+const createBookingCheckout = async (session) => {
+  const tour = session.client_reference_id;
+  const user = (await User.findOne({ email: session.customer_email })).id;
+  const bookedDate = session.metadata.bookedDate;
+  const price =
+    session.amount_total / 100 ||
+    session.line_items[0].price_data.unit_amount / 100;
+  await Booking.create({ tour, user, bookedDate, price });
+};
 
-  if (!tour || !user || !price || !bookedDate) return next();
+exports.webhookCheckout = (req, res, next) => {
+  const signature = req.headers['stripe-signature'];
 
-  if (!req.user)
-    throw new AppError('You must be logged in to complete a booking', 401);
-
-  if (req.user.role !== 'user')
-    throw new AppError(
-      'You do not have permission to complete this booking',
-      403,
+  let event;
+  try {
+    event = stripe.webhooks.constructEvent(
+      req.body,
+      signature,
+      process.env.STRIPE_WEBHOOK_SECRET,
     );
+  } catch (err) {
+    return res.status(400).send(`Webhook error: ${err.message}`);
+  }
 
-  await Booking.create({
-    tour,
-    user: req.user.id,
-    bookedDate,
-    price,
-  });
+  if (event.type === 'checkout.session.completed')
+    createBookingCheckout(event.data.object);
 
-  const date = await StartDate.findOne({ tour, date: new Date(bookedDate) });
-
-  if (date.soldOut)
-    throw new AppError(
-      'This date is sold out, please choose another date!',
-      400,
-    );
-
-  date.participants += 1;
-  await date.save();
-
-  res.redirect(req.originalUrl.split('?')[0]);
-});
+  res.status(200).json({ received: true });
+};
 
 exports.hasUserBookedTour = catchAsync(async (req, res, next) => {
   const userId = req.user.id;
@@ -109,7 +107,6 @@ exports.hasBookedDatePassed = catchAsync(async (req, res, next) => {
   );
 });
 
-exports.createBooking = factory.createOne(Booking);
 exports.getMyBookings = catchAsync(async (req, res) => {
   const userFilter = { user: req.user.id };
   const features = new APIFeatures(Booking.find(userFilter), {
@@ -149,6 +146,8 @@ exports.getMyBookings = catchAsync(async (req, res) => {
     },
   });
 });
+
+exports.createBooking = factory.createOne(Booking);
 exports.getAllBookings = factory.getAll(Booking);
 exports.getBooking = factory.getOne(Booking);
 exports.updateBooking = factory.updateOne(Booking);
