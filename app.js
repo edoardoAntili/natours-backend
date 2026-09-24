@@ -6,7 +6,6 @@ const helmet = require('helmet');
 const mongoSanitize = require('@exortek/express-mongo-sanitize');
 const { xss } = require('express-xss-sanitizer');
 const hpp = require('hpp');
-const cors = require('cors');
 const cookieParser = require('cookie-parser');
 const compression = require('compression');
 
@@ -19,6 +18,8 @@ const bookingRouter = require('./routes/bookingRoutes');
 const StartDate = require('./models/startDateModel');
 
 const app = express();
+
+app.enable('trust proxy');
 
 app.set('view engine', 'pug');
 app.set('views', path.join(__dirname, 'views'));
@@ -61,13 +62,6 @@ app.use(
         ],
       },
     },
-  }),
-);
-
-app.use(
-  cors({
-    origin: 'http://localhost:3000',
-    credentials: true,
   }),
 );
 
