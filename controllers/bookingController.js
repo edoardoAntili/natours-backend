@@ -10,13 +10,18 @@ const AppError = require('../utils/appError');
 exports.getCheckoutSession = catchAsync(async (req, res, next) => {
   // 1) Get the currently booked tour
   const tour = await Tour.findById(req.params.tourId);
+  const frontendUrl = process.env.FRONTEND_URL?.replace(/\/$/, '');
+
+  if (!frontendUrl) {
+    throw new AppError('Frontend URL is not configured', 500);
+  }
 
   // 2) Create checkout session
   const session = await stripe.checkout.sessions.create({
     payment_method_types: ['card'],
     mode: 'payment',
-    success_url: `${req.protocol}://${process.env.FRONTEND_URL}/?tour=${req.params.tourId}&user=${req.user.id}&price=${tour.price}&bookedDate=${req.body.bookedDate}`,
-    cancel_url: `${req.protocol}://${process.env.FRONTEND_URL}/tour/${tour.slug}`,
+    success_url: `${frontendUrl}/?tour=${req.params.tourId}&user=${req.user.id}&price=${tour.price}&bookedDate=${req.body.bookedDate}`,
+    cancel_url: `${frontendUrl}/tour/${tour.slug}`,
     customer_email: req.user.email,
     client_reference_id: req.params.tourId,
     line_items: [
