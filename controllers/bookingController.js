@@ -2,6 +2,7 @@ const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
 const Tour = require('../models/tourModel');
 const StartDate = require('../models/startDateModel');
 const Booking = require('../models/bookingModel');
+const User = require('../models/userModel');
 const catchAsync = require('../utils/catchAsync');
 const factory = require('./handlerFactory');
 const APIFeatures = require('../utils/apiFeatures');
