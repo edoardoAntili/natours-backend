@@ -212,8 +212,12 @@ exports.getTourBySlug = catchAsync(async (req, res, next) => {
   const bookedDateIds = doc.bookings.map((booking) =>
     booking.bookedDate._id.toString(),
   );
-  doc.startDates = doc.startDates.filter(
-    (startDate) => !bookedDateIds.includes(startDate._id.toString()),
+  doc.set(
+    'availableStartDates',
+    doc.startDates.filter(
+      (startDate) => !bookedDateIds.includes(startDate._id.toString()),
+    ),
+    { strict: false },
   );
 
   res.status(200).json({ status: 'success', data: { data: doc } });
