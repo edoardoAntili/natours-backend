@@ -1,4 +1,5 @@
 const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
+const mongoose = require('mongoose');
 const Tour = require('../models/tourModel');
 const StartDate = require('../models/startDateModel');
 const Booking = require('../models/bookingModel');
@@ -8,9 +9,31 @@ const factory = require('./handlerFactory');
 const APIFeatures = require('../utils/apiFeatures');
 const AppError = require('../utils/appError');
 
+exports.checkStartDateAvailability = catchAsync(async (req, res, next) => {
+  const { tourId } = req.params;
+  const { bookedDate } = req.body;
+
+  if (
+    !mongoose.isValidObjectId(tourId) ||
+    !mongoose.isValidObjectId(bookedDate)
+  )
+    throw new AppError('Invalid tour or start date', 400);
+
+  const tour = await Tour.findById(tourId);
+  if (!tour) throw new AppError('Tour not found', 404);
+
+  const startDate = await StartDate.findOne({ _id: bookedDate, tour: tourId });
+  if (!startDate) throw new AppError('Start date not found for this tour', 404);
+  if (startDate.soldOut || startDate.participants >= tour.maxGroupSize)
+    throw new AppError('This start date is sold out', 409);
+
+  req.tour = tour;
+  next();
+});
+
 exports.getCheckoutSession = catchAsync(async (req, res, next) => {
   // 1) Get the currently booked tour
-  const tour = await Tour.findById(req.params.tourId);
+  const tour = req.tour;
   const frontendUrl = process.env.FRONTEND_URL?.replace(/\/$/, '');
 
   if (!frontendUrl) {
@@ -21,8 +44,8 @@ exports.getCheckoutSession = catchAsync(async (req, res, next) => {
   const session = await stripe.checkout.sessions.create({
     payment_method_types: ['card'],
     mode: 'payment',
-    success_url: `${frontendUrl}/?tour=${req.params.tourId}&user=${req.user.id}&price=${tour.price}&bookedDate=${req.body.bookedDate}`,
-    cancel_url: `${frontendUrl}/tour/${tour.slug}`,
+    success_url: `${frontendUrl}/booking?status=success`,
+    cancel_url: `${frontendUrl}/booking?status=cancelled&tour=${encodeURIComponent(tour.slug)}`,
     customer_email: req.user.email,
     client_reference_id: req.params.tourId,
     metadata: {
@@ -51,6 +74,26 @@ exports.getCheckoutSession = catchAsync(async (req, res, next) => {
   });
 });
 
+const createBookingWithCount = async (details) =>
+  mongoose.connection.transaction(async (dbSession) => {
+    const tour = await Tour.findById(details.tour).session(dbSession);
+    if (!tour) throw new AppError('Tour not found', 404);
+
+    const startDate = await StartDate.findOne({
+      _id: details.bookedDate,
+      tour: details.tour,
+    }).session(dbSession);
+    if (!startDate)
+      throw new AppError('Start date not found for this tour', 404);
+
+    const [booking] = await Booking.create([details], { session: dbSession });
+    startDate.participants += 1;
+    startDate.soldOut = startDate.participants >= tour.maxGroupSize;
+    await startDate.save({ session: dbSession });
+
+    return booking;
+  });
+
 const createBookingCheckout = async (session) => {
   const tour = session.client_reference_id;
   const user = (await User.findOne({ email: session.customer_email })).id;
@@ -58,10 +101,19 @@ const createBookingCheckout = async (session) => {
   const price =
     session.amount_total / 100 ||
     session.line_items[0].price_data.unit_amount / 100;
-  await Booking.create({ tour, user, bookedDate, price });
+  try {
+    await createBookingWithCount({ tour, user, bookedDate, price });
+  } catch (err) {
+    if (
+      err.code === 11000 &&
+      (await Booking.exists({ tour, user, bookedDate }))
+    )
+      return;
+    throw err;
+  }
 };
 
-exports.webhookCheckout = (req, res, next) => {
+exports.webhookCheckout = async (req, res) => {
   const signature = req.headers['stripe-signature'];
 
   let event;
@@ -75,8 +127,13 @@ exports.webhookCheckout = (req, res, next) => {
     return res.status(400).send(`Webhook error: ${err.message}`);
   }
 
-  if (event.type === 'checkout.session.completed')
-    createBookingCheckout(event.data.object);
+  if (event.type === 'checkout.session.completed') {
+    try {
+      await createBookingCheckout(event.data.object);
+    } catch (err) {
+      return res.status(500).json({ message: 'Booking could not be saved' });
+    }
+  }
 
   res.status(200).json({ received: true });
 };
@@ -148,7 +205,10 @@ exports.getMyBookings = catchAsync(async (req, res) => {
   });
 });
 
-exports.createBooking = factory.createOne(Booking);
+exports.createBooking = catchAsync(async (req, res) => {
+  const booking = await createBookingWithCount(req.body);
+  res.status(201).json({ status: 'success', data: { data: booking } });
+});
 exports.getAllBookings = factory.getAll(Booking);
 exports.getBooking = factory.getOne(Booking);
 exports.updateBooking = factory.updateOne(Booking);

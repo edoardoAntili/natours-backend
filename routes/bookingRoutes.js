@@ -9,6 +9,7 @@ router.use(authController.protect);
 router.post(
   '/checkout-session/:tourId',
   authController.restrictTo('user'),
+  bookingController.checkStartDateAvailability,
   bookingController.getCheckoutSession,
 );
 
