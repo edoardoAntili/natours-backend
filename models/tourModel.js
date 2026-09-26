@@ -160,7 +160,10 @@ tourSchema.pre(/^find/, function () {
   this.populate({
     path: 'guides',
     select: '-__v -passwordChangedAt',
-  }).populate('startDates');
+  }).populate({
+    path: 'startDates',
+    match: { date: { $gt: new Date() } },
+  });
 });
 
 // tourSchema.post(/^find/, function () {

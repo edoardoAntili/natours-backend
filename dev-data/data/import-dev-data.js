@@ -5,6 +5,7 @@ const Tour = require('../../models/tourModel');
 const User = require('../../models/userModel');
 const Review = require('../../models/reviewModel');
 const StartDate = require('../../models/startDateModel');
+const Booking = require('../../models/bookingModel');
 
 dotenv.config({ path: './config.env' });
 
@@ -24,24 +25,42 @@ const reviews = JSON.parse(
 const startDates = JSON.parse(
   fs.readFileSync(`${__dirname}/startDates.json`, 'utf-8'),
 );
+const bookings = JSON.parse(
+  fs.readFileSync(`${__dirname}/bookings.json`, 'utf-8'),
+);
 
 // IMPORT DATA INTO DB
 const importData = async () => {
   try {
+    const datesWithBookings = startDates.map((startDate) => {
+      const participants = bookings.filter(
+        (booking) => booking.bookedDate === startDate._id,
+      ).length;
+      const tour = tours.find((item) => item._id === startDate.tour);
+      return {
+        ...startDate,
+        participants,
+        soldOut: participants >= tour.maxGroupSize,
+      };
+    });
+
     await Tour.create(tours);
     await User.create(users, { validateBeforeSave: false });
     await Review.create(reviews);
-    await StartDate.create(startDates);
+    await StartDate.create(datesWithBookings);
+    await Booking.create(bookings);
     console.log('Data successfully loaded!');
   } catch (err) {
     console.log(err);
+    process.exitCode = 1;
   }
-  process.exit();
+  await mongoose.disconnect();
 };
 
 // DELETE ALL DATA FROM COLLECTION
 const deleteData = async () => {
   try {
+    await Booking.deleteMany();
     await Tour.deleteMany();
     await User.deleteMany();
     await Review.deleteMany();
@@ -49,8 +68,9 @@ const deleteData = async () => {
     console.log('Data successfully deleted!');
   } catch (err) {
     console.log(err);
+    process.exitCode = 1;
   }
-  process.exit();
+  await mongoose.disconnect();
 };
 
 if (process.argv[2] === '--import') importData();
