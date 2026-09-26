@@ -50,7 +50,9 @@ exports.signup = catchAsync(async (req, res, next) => {
   await newUser.save({ validateBeforeSave: false });
 
   const url = `${req.protocol}://${req.get('host')}/confirm-email/${confirmationToken}`;
-  await new Email(newUser, url).sendWelcome();
+  new Email(newUser, url).sendWelcome().catch((err) => {
+    console.error('Welcome email failed:', err);
+  });
 
   createSendToken(newUser, 201, res, req);
 });
