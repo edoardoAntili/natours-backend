@@ -15,6 +15,8 @@ router.post(
 
 router.use(authController.restrictTo('admin'));
 
+router.get('/admin', bookingController.getAdminBookings);
+
 router
   .route('/')
   .get(bookingController.getAllBookings)

@@ -205,6 +205,74 @@ exports.getMyBookings = catchAsync(async (req, res) => {
   });
 });
 
+exports.getAdminBookings = catchAsync(async (req, res) => {
+  const query =
+    typeof req.query.query === 'string' ? req.query.query.trim() : '';
+  const escapedQuery = query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const requestedPage = Number(req.query.page);
+  const requestedLimit = Number(req.query.limit);
+  const limit =
+    Number.isSafeInteger(requestedLimit) && requestedLimit > 0
+      ? Math.min(requestedLimit, 100)
+      : 10;
+
+  let bookingFilter = {};
+  if (escapedQuery) {
+    const matchingUsers = await User.find({
+      $or: [
+        { name: { $regex: escapedQuery, $options: 'i' } },
+        { email: { $regex: escapedQuery, $options: 'i' } },
+      ],
+    }).select('_id');
+    bookingFilter = { user: { $in: matchingUsers.map((user) => user._id) } };
+  }
+
+  const totalResults = await Booking.countDocuments(bookingFilter);
+  const totalPages = Math.ceil(totalResults / limit);
+  const page = Math.min(
+    Number.isSafeInteger(requestedPage) && requestedPage > 0
+      ? requestedPage
+      : 1,
+    Math.max(totalPages, 1),
+  );
+  const bookings = await Booking.find(bookingFilter)
+    .populate({ path: 'user', select: 'name email' })
+    .populate({ path: 'tour', select: 'name slug' })
+    .populate({ path: 'bookedDate', select: 'date' })
+    .sort('-createdAt _id')
+    .skip((page - 1) * limit)
+    .limit(limit);
+
+  res.status(200).json({
+    status: 'success',
+    results: bookings.length,
+    pagination: {
+      page,
+      limit,
+      totalResults,
+      totalPages,
+      hasNextPage: page < totalPages,
+    },
+    data: {
+      data: bookings.map((booking) => ({
+        _id: booking.id,
+        user: booking.user
+          ? { name: booking.user.name, email: booking.user.email }
+          : null,
+        tour: booking.tour
+          ? { name: booking.tour.name, slug: booking.tour.slug }
+          : null,
+        bookedDate: booking.bookedDate
+          ? { date: booking.bookedDate.date }
+          : null,
+        price: booking.price,
+        createdAt: booking.createdAt,
+        paid: booking.paid,
+      })),
+    },
+  });
+});
+
 exports.createBooking = catchAsync(async (req, res) => {
   const booking = await createBookingWithCount(req.body);
   res.status(201).json({ status: 'success', data: { data: booking } });
@@ -212,4 +280,20 @@ exports.createBooking = catchAsync(async (req, res) => {
 exports.getAllBookings = factory.getAll(Booking);
 exports.getBooking = factory.getOne(Booking);
 exports.updateBooking = factory.updateOne(Booking);
-exports.deleteBooking = factory.deleteOne(Booking);
+exports.deleteBooking = catchAsync(async (req, res) => {
+  await mongoose.connection.transaction(async (dbSession) => {
+    const booking = await Booking.findByIdAndDelete(req.params.id).session(
+      dbSession,
+    );
+    if (!booking) throw new AppError('No document found with that ID', 404);
+
+    const startDateId = booking.bookedDate?._id || booking.bookedDate;
+    await StartDate.updateOne(
+      { _id: startDateId, participants: { $gt: 0 } },
+      { $inc: { participants: -1 }, $set: { soldOut: false } },
+      { session: dbSession },
+    );
+  });
+
+  res.status(204).json({ status: 'success', data: null });
+});

@@ -33,9 +33,12 @@ const bookingSchema = new mongoose.Schema({
 bookingSchema.index({ tour: 1, user: 1, bookedDate: 1 }, { unique: true });
 
 bookingSchema.pre(/^find/, function () {
-  this.populate('user')
-    .populate({ path: 'tour', select: 'name' })
-    .populate({ path: 'bookedDate', select: 'date' });
+  const populatedPaths = this.getPopulatedPaths();
+  if (!populatedPaths.includes('user')) this.populate('user');
+  if (!populatedPaths.includes('tour'))
+    this.populate({ path: 'tour', select: 'name' });
+  if (!populatedPaths.includes('bookedDate'))
+    this.populate({ path: 'bookedDate', select: 'date' });
 });
 
 const Booking = mongoose.model('Booking', bookingSchema);
